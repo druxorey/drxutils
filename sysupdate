@@ -11,11 +11,13 @@ function drxutilsUpdate() {
 	local repositoryUrl="https://github.com/druxorey/drxutils.git"
 	local srcDirectory="$HOME/.cache/drxutils_src"
 	local binDirectory="$HOME/.local/bin"
+	local deletedFiles=""
+	local changedFiles=""
 
 	mkdir -p "$binDirectory"
 
 	if [[ ! -d "$srcDirectory" ]]; then
-		printf "%b Cloning drxutils repository...\n" "$FORMAT_SUCCESS"
+		printf "Clonando el repositorio drxutils...\n"
 		git clone "$repositoryUrl" "$srcDirectory" --quiet
 		cd "$srcDirectory" || return
 		changedFiles=$(git ls-files)
@@ -24,53 +26,67 @@ function drxutilsUpdate() {
 		git fetch origin --quiet
 		
 		local branch=$(git branch --show-current)
-		changedFiles=$(git diff --name-only HEAD origin/"$branch")
-
-		if [[ -z "$changedFiles" ]]; then
-			printf "%b The drxutils scripts are up to date.\n" "$FORMAT_SUCCESS"
-			return 0
-		fi
-		
+		deletedFiles=$(git diff --name-only --diff-filter=D HEAD origin/"$branch")
+		changedFiles=$(git diff --name-only --diff-filter=AM HEAD origin/"$branch")
 		git reset --hard origin/"$branch" --quiet
 	fi
 
-	local -A goDirsToCompile
+	if [[ -n "$deletedFiles" ]]; then
+		for file in $deletedFiles; do
+			if [[ "$file" != */* ]]; then
+				rm -f "$binDirectory/$file"
+				printf "%b Bash script removed locally: %s\n" "$FORMAT_WARNING" "$file"
+			else
+				local dirName="${file%%/*}"
+				rm -f "$binDirectory/$dirName"
+				printf "%b Go project removed locally: %s\n" "$FORMAT_WARNING" "$dirName"
+			fi
+		done
+	fi
 
-	for file in $changedFiles; do
-		if [[ ! -f "$file" ]]; then
-			printf "%b Skipping non-file change: %s\n" "$FORMAT_ERROR" "$file"
-			continue
-		fi
-
-		if [[ "$file" != */* ]]; then
-			if [[ "$file" == "README.md" || "$file" == "LICENSE" || "$file" == .* ]]; then
+	for file in *; do
+		if [[ -f "$file" ]]; then
+			if [[ "$file" == "README.md"   ||
+				  "$file" == "LICENSE"     ||
+				  "$file" == "go.work"     ||
+				  "$file" == "go.work.sum" ||
+				  "$file" == .* ]]; then
 				continue
 			fi
-			
 			cp -f "$file" "$binDirectory/"
 			chmod +x "$binDirectory/$file"
-			printf "%b Bash script updated: %s\n" "$FORMAT_SUCCESS" "$file"
-		else
-			local dirName="${file%%/*}"
-			
-			if [[ -f "$dirName/go.mod" ]]; then
-				goDirsToCompile["$dirName"]=1
-			fi
 		fi
 	done
+	printf "%b All bash scripts copied to %s\n" "$FORMAT_SUCCESS" "$binDirectory"
 
-	for goDirectories in "${!goDirsToCompile[@]}"; do
-		printf "%b Compilando proyecto Go: %s...\n" "$FORMAT_SUCCESS" "$goDirectories"
-		(
-			cd "$goDirectories" || exit
-			if go build -o "$binDirectory/$goDirectories"; then
-				printf "%b Compiled and installed: %s\n" "$FORMAT_SUCCESS" "$goDirectories"
-			else
-				printf "%b Failed to compile: %s\n" "$FORMAT_ERROR" "$goDirectories" >&2
+	if [[ -n "$changedFiles" ]]; then
+		local -A goDirsToCompile
+
+		for file in $changedFiles; do
+			if [[ "$file" == */* ]]; then
+				local dirName="${file%%/*}"
+				if [[ -f "$dirName/go.mod" ]]; then
+					goDirsToCompile["$dirName"]=1
+				fi
 			fi
-		)
-	done
+		done
+
+		for goDirectories in "${!goDirsToCompile[@]}"; do
+			printf "Compilling Go project: %s...\n" "$goDirectories"
+			(
+				cd "$goDirectories" || exit
+				if go build -o "$binDirectory/$goDirectories"; then
+					printf "%b Instaled: %s\n" "$FORMAT_SUCCESS" "$goDirectories"
+				else
+					printf "%b Compilling failed for: %s\n" "$FORMAT_ERROR" "$goDirectories" >&2
+				fi
+			)
+		done
+	else
+		printf "%b Go projects are up to date.\n" "$FORMAT_SUCCESS"
+	fi
 }
+
 
 function main() {
 	sudo -v
