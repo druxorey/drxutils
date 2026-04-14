@@ -29,7 +29,7 @@ ${FORMAT_BOLD}EXAMPLES:${FORMAT_RESET}
 
 function backupBookmarks() {
 	local bookmarksDir="$HOME/.config/BraveSoftware/Brave-Browser/Default/Bookmarks"
-	local yamlDir="$1/config/brave/"
+	local yamlDir="$1/local/share/brave/"
 
 	# This pipeline extracts bookmarks from Brave's JSON-formatted bookmarks file and converts them to YAML:
 	# 1. grep -E '"name":|\"url\":': Filters the raw JSON to only include lines containing "name" or "url" keys.
@@ -73,15 +73,13 @@ function main() {
 	fi
 
 	local extraDirs=(
-		"$directory/config"
-		"$directory/local"
 		"$directory/config/zsh"
 		"$directory/config/vencord"
 		"$directory/config/bash"
 		"$directory/config/obsidian"
 		"$directory/config/tlp"
-		"$directory/config/brave"
-		"$directory/local/share"
+		"$directory/local/share/crater"
+		"$directory/local/share/brave"
 	)
 
 	mkdir -p "${extraDirs[@]}" || {
@@ -112,8 +110,6 @@ function main() {
 		["$HOME/.bash_profile"]="rsync -a $HOME/.bash_profile $directory/config/bash/.bash_profile"
 		["$HOME/.bashrc"]="rsync -a $HOME/.bashrc $directory/config/bash/.bashrc"
 		["$HOME/.gitconfig"]="rsync -a $HOME/.gitconfig $directory/config/gitconfig"
-		["$HOME/.local/bin"]="rsync -a --delete $HOME/.local/bin $directory/local/"
-		["$HOME/.local/share/applications"]="rsync -a --delete $HOME/.local/share/applications $directory/local/share/"
 		["$HOME/.local/share/crater"]="rsync -a --delete $HOME/.local/share/crater $directory/local/share/"
 		["$OBSIDIAN_DIR/.obsidian"]="rsync -a --delete $OBSIDIAN_DIR/.obsidian/* $directory/config/obsidian"
 		["/etc/X11/xorg.conf.d"]="rsync -a /etc/X11/xorg.conf.d $directory/config"
