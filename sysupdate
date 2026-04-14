@@ -1,0 +1,123 @@
+#!/bin/bash
+
+declare -r FORMAT_SUCCESS="\e[1;32m[SUCCESS]\e[0m"
+declare -r FORMAT_ERROR="\e[1;31m[ERROR]\e[0m"
+
+declare -r CACHE_ROUTE="$HOME/.cache"
+declare -r TRASH_ROUTE="$HOME/.local/share/Trash/files"
+declare -r CACHE_WHITELIST=("uv" "actual_theme" "huggingface")
+
+function drxutilsUpdate() {
+	local repositoryUrl="https://github.com/druxorey/drxutils.git"
+	local srcDirectory="$HOME/.cache/drxutils_src"
+	local binDirectory="$HOME/.local/bin"
+
+	mkdir -p "$binDirectory"
+
+	if [[ ! -d "$srcDirectory" ]]; then
+		printf "%b Cloning drxutils repository...\n" "$FORMAT_SUCCESS"
+		git clone "$repositoryUrl" "$srcDirectory" --quiet
+		cd "$srcDirectory" || return
+		changedFiles=$(git ls-files)
+	else
+		cd "$srcDirectory" || return
+		git fetch origin --quiet
+		
+		local branch=$(git branch --show-current)
+		changedFiles=$(git diff --name-only HEAD origin/"$branch")
+
+		if [[ -z "$changedFiles" ]]; then
+			printf "%b The drxutils scripts are up to date.\n" "$FORMAT_SUCCESS"
+			return 0
+		fi
+		
+		git reset --hard origin/"$branch" --quiet
+	fi
+
+	local -A goDirsToCompile
+
+	for file in $changedFiles; do
+		if [[ ! -f "$file" ]]; then
+			printf "%b Skipping non-file change: %s\n" "$FORMAT_ERROR" "$file"
+			continue
+		fi
+
+		if [[ "$file" != */* ]]; then
+			if [[ "$file" == "README.md" || "$file" == "LICENSE" || "$file" == .* ]]; then
+				continue
+			fi
+			
+			cp -f "$file" "$binDirectory/"
+			chmod +x "$binDirectory/$file"
+			printf "%b Bash script updated: %s\n" "$FORMAT_SUCCESS" "$file"
+		else
+			local dirName="${file%%/*}"
+			
+			if [[ -f "$dirName/go.mod" ]]; then
+				goDirsToCompile["$dirName"]=1
+			fi
+		fi
+	done
+
+	for goDirectories in "${!goDirsToCompile[@]}"; do
+		printf "%b Compilando proyecto Go: %s...\n" "$FORMAT_SUCCESS" "$goDirectories"
+		(
+			cd "$goDirectories" || exit
+			if go build -o "$binDirectory/$goDirectories"; then
+				printf "%b Compiled and installed: %s\n" "$FORMAT_SUCCESS" "$goDirectories"
+			else
+				printf "%b Failed to compile: %s\n" "$FORMAT_ERROR" "$goDirectories" >&2
+			fi
+		)
+	done
+}
+
+function main() {
+	sudo -v
+	while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
+	if ! sudo pacman -Syu --noconfirm; then
+		printf "%b Failed to update system packages.\n" "$FORMAT_ERROR" >&2
+	fi
+
+	if ! yay -Sua --noconfirm; then
+		printf "%b Failed to update AUR packages.\n" "$FORMAT_ERROR" >&2
+	fi
+
+	if grep -q "\[ALPM\] upgraded discord" /var/log/pacman.log | grep "$(date +%Y-%m-%d)"; then
+		sh -c "$(curl -sS https://raw.githubusercontent.com/Vendicated/VencordInstaller/main/install.sh)"
+	fi
+
+	if ! ya pkg upgrade; then
+		printf "%b Failed to update Yazi plugins.\n" "$FORMAT_ERROR" >&2
+	fi
+
+	drxutilsUpdate
+
+	local cacheSize=0
+	cacheSize=$(du -sm "$CACHE_ROUTE" | cut -f1)
+	if [ "$cacheSize" -gt 8192 ]; then
+		local excludeArgs=()
+		for item in "${CACHE_WHITELIST[@]}"; do
+			excludeArgs+=( -not -path "$CACHE_ROUTE/$item" -not -path "$CACHE_ROUTE/$item/*" )
+		done
+
+		find "$CACHE_ROUTE" -mindepth 1 "${excludeArgs[@]}" -delete 2>/dev/null
+		printf "%b Cache of size %sMB cleared (whitelist preserved).\n" "$FORMAT_SUCCESS" "$cacheSize"
+	fi
+
+	local trashSize=0
+	trashSize=$(du -sm "$TRASH_ROUTE" | cut -f1)
+	if [ "$trashSize" -gt 32768 ]; then
+		sudo rm -rf "${TRASH_ROUTE:?}"/*
+		printf "%b Trash of size %sMB cleared successfully.\n" "$FORMAT_SUCCESS" "$trashSize"
+	fi
+
+	[[ -d "$HOME/go" ]] && sudo rm -rf "$HOME/go"
+
+	printf "%b System update completed.\n" "$FORMAT_SUCCESS"
+
+	return 0
+}
+
+main "$@"

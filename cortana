@@ -1,0 +1,79 @@
+#!/bin/bash
+
+declare -r FORMAT_SUCCESS="\e[1;32m[SUCCESS]"
+declare -r FORMAT_ERROR="\e[1;31m[ERROR]"
+declare -r FORMAT_WARNING="\e[1;33m[WARNING]"
+declare -r FORMAT_RESET="\e[0m"
+
+declare -r WEBUI_DIR="/home/druxorey/Workspace/Projects/open-webui"
+declare -r DATA_DIR="/home/druxorey/.local/share/open-webui"
+
+function startWebui() {
+	if ! pgrep -x "ollama" >/dev/null; then
+		printf "Starting Ollama...\n"
+		nohup ollama serve >/dev/null 2>&1 &
+		sleep 2
+	else
+		printf "%b Ollama is already running %b\n" "$FORMAT_WARNING" "$FORMAT_RESET"
+	fi
+
+	if ! pgrep -f "open-webui serve" >/dev/null; then
+		printf "Starting Open WebUI"
+		cd "$WEBUI_DIR" || exit 1
+		DATA_DIR="$DATA_DIR" nohup uv run open-webui serve >/dev/null 2>&1 &
+		
+		for _ in {1..3}; do sleep 3; printf "."; done
+		printf "\n%b Open WebUI is ready at: http://localhost:8080 %b\n" "$FORMAT_SUCCESS" "$FORMAT_RESET"
+	else
+		printf "%b Open WebUI is already running %b\n" "$FORMAT_WARNING" "$FORMAT_RESET"
+	fi
+}
+
+
+function stopWebui() {
+	printf "Stopping Open WebUI...\n"
+	pkill -f "open-webui serve"
+	
+	printf "Stopping Ollama...\n"
+	pkill -x "ollama"
+
+	printf "%b Services stopped successfully %b\n" "$FORMAT_SUCCESS" "$FORMAT_RESET"
+}
+
+
+function checkStatus() {
+	if pgrep -x "ollama" >/dev/null; then
+		printf "Ollama: %bRUNNING%b\n" "$FORMAT_SUCCESS" "$FORMAT_RESET"
+	else
+		printf "Ollama: %bSTOPPED%b\n" "$FORMAT_ERROR" "$FORMAT_RESET"
+	fi
+
+	if pgrep -f "open-webui serve" >/dev/null; then
+		printf "Open WebUI: %bRUNNING%b\n" "$FORMAT_SUCCESS" "$FORMAT_RESET"
+	else
+		printf "Open WebUI: %bSTOPPED%b\n" "$FORMAT_ERROR" "$FORMAT_RESET"
+	fi
+}
+
+
+function main() {
+	case "$1" in
+	start | on)
+		startWebui
+		;;
+	stop | off)
+		stopWebui
+		;;
+	status)
+		checkStatus
+		;;
+	*)
+		printf "Usage: %s {start|stop|status}\n" "$0"
+		exit 1
+		;;
+	esac
+
+	return 0
+}
+
+main "$@"
