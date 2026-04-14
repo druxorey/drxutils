@@ -17,7 +17,7 @@ function drxutilsUpdate() {
 	mkdir -p "$binDirectory"
 
 	if [[ ! -d "$srcDirectory" ]]; then
-		printf "Clonando el repositorio drxutils...\n"
+		printf "Clonning drxutils repository...\n"
 		git clone "$repositoryUrl" "$srcDirectory" --quiet
 		cd "$srcDirectory" || return
 		changedFiles=$(git ls-files)
@@ -33,31 +33,28 @@ function drxutilsUpdate() {
 
 	if [[ -n "$deletedFiles" ]]; then
 		for file in $deletedFiles; do
-			if [[ "$file" != */* ]]; then
-				rm -f "$binDirectory/$file"
-				printf "%b Bash script removed locally: %s\n" "$FORMAT_WARNING" "$file"
-			else
+			if [[ "$file" == bash/* ]]; then
+				local scriptName="${file#bash/}"
+				rm -f "$binDirectory/$scriptName"
+				printf "%b Bash script removed locally: %s\n" "$FORMAT_SUCCESS" "$scriptName"
+			elif [[ "$file" == */* ]]; then
 				local dirName="${file%%/*}"
 				rm -f "$binDirectory/$dirName"
-				printf "%b Go project removed locally: %s\n" "$FORMAT_WARNING" "$dirName"
+				printf "%b Go project removed locally: %s\n" "$FORMAT_SUCCESS" "$dirName"
 			fi
 		done
 	fi
 
-	for file in *; do
-		if [[ -f "$file" ]]; then
-			if [[ "$file" == "README.md"   ||
-				  "$file" == "LICENSE"     ||
-				  "$file" == "go.work"     ||
-				  "$file" == "go.work.sum" ||
-				  "$file" == .* ]]; then
-				continue
+	if [[ -d "bash" ]]; then
+		for file in bash/*; do
+			if [[ -f "$file" ]]; then
+				local scriptName="${file#bash/}"
+				cp -f "$file" "$binDirectory/$scriptName"
+				chmod +x "$binDirectory/$scriptName"
 			fi
-			cp -f "$file" "$binDirectory/"
-			chmod +x "$binDirectory/$file"
-		fi
-	done
-	printf "%b All bash scripts copied to %s\n" "$FORMAT_SUCCESS" "$binDirectory"
+		done
+		printf "%b All bash scripts copied to %s\n" "$FORMAT_SUCCESS" "$binDirectory"
+	fi
 
 	if [[ -n "$changedFiles" ]]; then
 		local -A goDirsToCompile
@@ -65,20 +62,20 @@ function drxutilsUpdate() {
 		for file in $changedFiles; do
 			if [[ "$file" == */* ]]; then
 				local dirName="${file%%/*}"
-				if [[ -f "$dirName/go.mod" ]]; then
+				if [[ "$dirName" != "bash" && -f "$dirName/go.mod" ]]; then
 					goDirsToCompile["$dirName"]=1
 				fi
 			fi
 		done
 
 		for goDirectories in "${!goDirsToCompile[@]}"; do
-			printf "Compilling Go project: %s...\n" "$goDirectories"
+			printf "Compiling Go project: %s...\n" "$goDirectories"
 			(
 				cd "$goDirectories" || exit
 				if go build -o "$binDirectory/$goDirectories"; then
-					printf "%b Instaled: %s\n" "$FORMAT_SUCCESS" "$goDirectories"
+					printf "%b Installed: %s\n" "$FORMAT_SUCCESS" "$goDirectories"
 				else
-					printf "%b Compilling failed for: %s\n" "$FORMAT_ERROR" "$goDirectories" >&2
+					printf "%b Compiling failed for: %s\n" "$FORMAT_ERROR" "$goDirectories" >&2
 				fi
 			)
 		done
@@ -92,22 +89,27 @@ function main() {
 	sudo -v
 	while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
+	printf "\n\e[1;34mStarting pacman package update...\e[0m\n\n"
 	if ! sudo pacman -Syu --noconfirm; then
 		printf "%b Failed to update system packages.\n" "$FORMAT_ERROR" >&2
 	fi
 
+	printf "\n\e[1;34mStarting AUR package update...\e[0m\n\n"
 	if ! yay -Sua --noconfirm; then
 		printf "%b Failed to update AUR packages.\n" "$FORMAT_ERROR" >&2
 	fi
 
+	printf "\n\e[1;34mChecking for Discord updates...\e[0m\n\n"
 	if grep -q "\[ALPM\] upgraded discord" /var/log/pacman.log | grep "$(date +%Y-%m-%d)"; then
 		sh -c "$(curl -sS https://raw.githubusercontent.com/Vendicated/VencordInstaller/main/install.sh)"
 	fi
 
+	printf "\n\e[1;34mUpdating Yazi plugins...\e[0m\n\n"
 	if ! ya pkg upgrade; then
 		printf "%b Failed to update Yazi plugins.\n" "$FORMAT_ERROR" >&2
 	fi
 
+	printf "\n\e[1;34mUpdating drxutils...\e[0m\n\n"
 	drxutilsUpdate
 
 	local cacheSize=0
