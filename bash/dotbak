@@ -111,7 +111,7 @@ function main() {
 		["$HOME/.bashrc"]="rsync -a $HOME/.bashrc $directory/config/bash/.bashrc"
 		["$HOME/.gitconfig"]="rsync -a $HOME/.gitconfig $directory/config/gitconfig"
 		["$HOME/.local/share/crater"]="rsync -a --delete $HOME/.local/share/crater $directory/local/share/"
-		["$OBSIDIAN_DIR/.obsidian"]="rsync -a --delete $OBSIDIAN_DIR/.obsidian/* $directory/config/obsidian"
+		["$OBSIDIAN_DIR/.obsidian"]="rsync -a --delete $OBSIDIAN_DIR/.obsidian/ $directory/config/obsidian"
 		["/etc/X11/xorg.conf.d"]="rsync -a /etc/X11/xorg.conf.d $directory/config"
 		["/etc/tlp.d"]="rsync -a /etc/tlp.d/ $directory/config/tlp"
 		["/var/spool/cron/druxorey"]="rsync -a /var/spool/cron/druxorey $directory/config/crontab"
