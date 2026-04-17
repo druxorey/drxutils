@@ -15,10 +15,10 @@ function main() {
 		cd "${VAULT_PATH}" || { printf "%b Failed to change directory.\n" "$FORMAT_ERROR"; exit 0; }
 		git checkout --orphan temp_branch || { printf "%b Failed to create orphan branch.\n" "$FORMAT_ERROR"; exit 0; }
 		git add -A
-		git commit -m "Clean branch - $(date +%d-%m-%Y_%H-%M-%S)" || { printf "%b Failed to commit changes.\n" "$FORMAT_ERROR"; exit 0; }
+		git commit -m "obsidian branch cleared:  $(date '+%Y-%m-%d %H:%M:%S')" || { printf "%b Failed to commit changes.\n" "$FORMAT_ERROR"; exit 0; }
 		git branch -D main || { printf "%b Failed to delete main branch.\n" "$FORMAT_ERROR"; exit 0; }
 		git branch -m main || { printf "%b Failed to rename branch to main.\n" "$FORMAT_ERROR"; exit 0; }
-		git push -f origin main || { printf "%b Failed to push to origin.\n" "$FORMAT_ERROR"; exit 0; }
+		git push -f --set-upstream origin main || { printf "%b Failed to push to origin.\n" "$FORMAT_ERROR"; exit 0; }
 	)
 
 	printf "%b Obsidian vault cleaned.\n" "$FORMAT_SUCCESS"
