@@ -100,23 +100,24 @@ function main() {
     local filename="${inputFile%.*}"
     local outputFile="${filename}.pdf"
 
-	local LUA_FILTER=$(mktemp /tmp/pandoc_obsidian_filter.XXXXXX.lua) || {
+	local luaFilter=$(mktemp /tmp/pandoc_obsidian_filter.XXXXXX.lua) || {
 		printf "%b Failed to create temporary file\n" "$FORMAT_ERROR"
 		return 1
 	}
 
-	trap 'rm -f "$LUA_FILTER"' EXIT
-	createLuaFilter "$LUA_FILTER"
+	trap 'rm -f "$luaFilter"' EXIT
+	createLuaFilter "$luaFilter"
 
 	if sed -E 's/<h1.*<\/h1>//g' "$inputFile" | pandoc \
 		-f markdown+wikilinks_title_after_pipe \
 		-o "$outputFile" \
-		--lua-filter="$LUA_FILTER" \
+		--lua-filter="$luaFilter" \
 		--pdf-engine=xelatex \
 		--highlight-style=breezedark \
 		-V lang=es-ES \
 		-V mainfont="Noto Serif" \
 		-V mainfontoptions="BoldFont=Noto Serif Bold" \
+		-V mathfont="Noto Sans Math" \
 		-V monofont="Hack Nerd Font" \
 		-V fontsize=10pt \
 		-V geometry:margin=2.5cm \
@@ -129,6 +130,8 @@ function main() {
 		-V urlcolor=drx-color-red \
 		-V toccolor=black \
 		-V header-includes="\usepackage{tcolorbox}" \
+		-V header-includes="\usepackage{fvextra}" \
+		-V header-includes="\fvset{breaklines=true, breakanywhere=true}" \
 		-V header-includes="\definecolor{drx-color-red}{HTML}{CB3A2A}" \
 		-V header-includes="\definecolor{drx-color-orange}{HTML}{AF3A03}" \
 		-V header-includes="\definecolor{drx-color-green}{HTML}{14710A}" \
