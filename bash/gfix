@@ -18,7 +18,7 @@ function main() {
 	git log --oneline --graph --decorate -n 1
 
 	if git reset --soft HEAD~1; then
-		printf "\n%b Reverted to previous commit:\n" "$FORMAT_SUCCESS"
+		printf "\n Reverted to previous commit:\n"
 		git log --oneline --graph --decorate -n 1
 	else
 		printf "\n%b Failed to perform git reset.\n" "$FORMAT_ERROR"
