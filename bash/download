@@ -53,7 +53,7 @@ function main() {
 
 		currentClipboard=$(xclip -selection clipboard -o 2>/dev/null)
 		
-		if [[ "$currentClipboard" != "$lastClipboard" ]] && [[ "$currentClipboard" =~ ^https?:// ]]; then
+		if [[ "$currentClipboard" != "$lastClipboard" ]] && [[ "$currentClipboard" =~ ^https?://.*\.[a-zA-Z0-9]+/?$ ]]; then
 			links+=("$currentClipboard")
 			lastClipboard="$currentClipboard"
 			printf " ⮞ Added: %s (Total: %d)\n" "$currentClipboard" "${#links[@]}"
