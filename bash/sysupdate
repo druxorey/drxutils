@@ -86,43 +86,69 @@ function drxutilsUpdate() {
 
 
 function main() {
+	local updatePkgs=false
+	local updatePlugins=false
+	local updateScripts=false
+
+	while getopts "pnsh" opt; do
+		case $opt in
+			p) updatePkgs=true ;;
+			n) updatePlugins=true ;;
+			s) updateScripts=true ;;
+			h) printf "\e[1;34mUSAGE:\e[0m %s [-p (packages)] [-n (plugins)] [-s (scripts)]\n" "$(basename "$0")"; return 1 ;;
+			*) printf "%b Try '%s -h' for more information.\n" "$FORMAT_ERROR" "$(basename "$0")" >&2 && exit 1 ;;
+		esac
+	done
+
+	if ! $updatePkgs && ! $updatePlugins && ! $updateScripts; then
+		updatePkgs=true
+		updatePlugins=true
+		updateScripts=true
+	fi
+
 	sudo -v
 	while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
-	printf " ➤ \e[1;34mStarting pacman package update...\e[0m\n"
-	if ! sudo pacman -Syu --noconfirm; then
-		printf "%b Failed to update system packages.\n" "$FORMAT_ERROR" >&2
-	else
-		printf "%b System packages updated successfully.\n" "$FORMAT_SUCCESS"
+	if $updatePkgs; then
+		printf " ➤ \e[1;34mStarting pacman package update...\e[0m\n"
+		if ! sudo pacman -Syu --noconfirm; then
+			printf "%b Failed to update system packages.\n" "$FORMAT_ERROR" >&2
+		else
+			printf "%b System packages updated successfully.\n" "$FORMAT_SUCCESS"
+		fi
+
+		printf " ➤ \e[1;34mStarting AUR package update...\e[0m\n"
+		if ! yay -Sua --noconfirm; then
+			printf "%b Failed to update AUR packages.\n" "$FORMAT_ERROR" >&2
+		else
+			printf "%b AUR packages updated successfully.\n" "$FORMAT_SUCCESS"
+		fi
+
+		printf " ➤ \e[1;34mChecking for Discord updates...\e[0m\n"
+		if grep -q "\[ALPM\] upgraded discord" /var/log/pacman.log | grep "$(date +%Y-%m-%d)"; then
+			sh -c "$(curl -sS https://raw.githubusercontent.com/Vendicated/VencordInstaller/main/install.sh)"
+			printf "%b Discord hooks/Vencord updated.\n" "$FORMAT_SUCCESS"
+		else
+			printf "No Discord update detected.\n"
+		fi
 	fi
 
-	printf " ➤ \e[1;34mStarting AUR package update...\e[0m\n"
-	if ! yay -Sua --noconfirm; then
-		printf "%b Failed to update AUR packages.\n" "$FORMAT_ERROR" >&2
-	else
-		printf "%b AUR packages updated successfully.\n" "$FORMAT_SUCCESS"
+	if $updatePlugins; then
+		printf " ➤ \e[1;34mUpdating Yazi plugins...\e[0m\n"
+		if ! ya pkg upgrade; then
+			printf "%b Failed to update Yazi plugins.\n" "$FORMAT_ERROR" >&2
+		else
+			printf "%b Yazi plugins updated successfully.\n" "$FORMAT_SUCCESS"
+		fi
 	fi
 
-	printf " ➤ \e[1;34mChecking for Discord updates...\e[0m\n"
-	if grep -q "\[ALPM\] upgraded discord" /var/log/pacman.log | grep "$(date +%Y-%m-%d)"; then
-		sh -c "$(curl -sS https://raw.githubusercontent.com/Vendicated/VencordInstaller/main/install.sh)"
-		printf "%b Discord hooks/Vencord updated.\n" "$FORMAT_SUCCESS"
-	else
-		printf "No Discord update detected.\n"
-	fi
-
-	printf " ➤ \e[1;34mUpdating Yazi plugins...\e[0m\n"
-	if ! ya pkg upgrade; then
-		printf "%b Failed to update Yazi plugins.\n" "$FORMAT_ERROR" >&2
-	else
-		printf "%b Yazi plugins updated successfully.\n" "$FORMAT_SUCCESS"
-	fi
-
-	printf " ➤ \e[1;34mUpdating drxutils...\e[0m\n"
-	if drxutilsUpdate; then
-		printf "%b drxutils updated successfully.\n" "$FORMAT_SUCCESS"
-	else
-		printf "%b Failed to update drxutils.\n" "$FORMAT_ERROR" >&2
+	if $updateScripts; then
+		printf " ➤ \e[1;34mUpdating drxutils...\e[0m\n"
+		if drxutilsUpdate; then
+			printf "%b drxutils updated successfully.\n" "$FORMAT_SUCCESS"
+		else
+			printf "%b Failed to update drxutils.\n" "$FORMAT_ERROR" >&2
+		fi
 	fi
 
 	local cacheSize=0
