@@ -174,7 +174,7 @@ func saveAllPackages(packages PackageMap) {
 
 	for _, cat := range Categories {
 		for _, repo := range Repos {
-			_, _ = fmt.Fprintf(file, "%s_%s_packages=(\n", cat, repo)
+			_, _ = fmt.Fprintf(writer, "%s_%s_packages=(\n", cat, repo)
 
 			pkgMap := make(map[string]bool)
 			for _, p := range packages[cat][repo] {
@@ -187,7 +187,7 @@ func saveAllPackages(packages PackageMap) {
 			sort.Strings(sortedPackages)
 
 			for _, pkg := range sortedPackages {
-				_, _ = fmt.Fprintf(file, "\t%s\n", pkg)
+				_, _ = fmt.Fprintf(writer, "\t%s\n", pkg)
 			}
 			_, _ = writer.WriteString(")\n\n")
 		}
