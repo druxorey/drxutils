@@ -53,7 +53,9 @@ function main() {
 	cp -f "$COVER_PATH" "/tmp/thumbnail.jpg"
 
 	if $isDebug; then
-		yt-dlp --format "ba/w" -o - "$source" | ffplay -nodisp -af "volume=$volume" -
+		trap 'pkill -P $$ 2>/dev/null' EXIT SIGTERM SIGINT
+		yt-dlp --format "ba/w" -o - "$source" | ffplay -nodisp -af "volume=$volume" - &
+		wait
 		exit 0
 	fi
 
